@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filmy Guess — Bollywood Movie Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#140b2e; --night-2:#241347;
+    --marigold:#f4b942; --rani:#e93d82;
+    --cream:#fdf3dc; --teal:#2dd4bf; --red:#ef4444;
+    --card:#1d1140;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    background:radial-gradient(120% 90% at 50% 0%, var(--night-2) 0%, var(--night) 60%, #0b0620 100%);
+    color:var(--cream);
+    font-family:'Baloo 2', system-ui, sans-serif;
+    overflow:hidden; user-select:none; cursor:default;
+  }
+  #fx{position:fixed; inset:0; pointer-events:none; z-index:50;}
+  #flash-bad{
+    position:fixed; inset:0; pointer-events:none; z-index:49;
+    background:radial-gradient(ellipse at center, rgba(200,30,30,.35), rgba(90,0,0,.55));
+    opacity:0; transition:opacity .25s ease;
+  }
+  #flash-bad.on{opacity:1;}
+  .stage{height:100vh; padding:3vh 5vw; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;}
+  .stage.shake{animation:shake .5s ease;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-14px);} 40%{transform:translateX(12px);}
+    60%{transform:translateX(-8px);} 80%{transform:translateX(6px);}
+  }
+  .screen{display:none; width:100%; max-width:1200px; text-align:center;}
+  .screen.active{display:block; animation:pop .35s ease;}
+  @keyframes pop{from{opacity:0; transform:scale(.96);} to{opacity:1; transform:scale(1);}}
+
+  h1{
+    font-family:'Yatra One', serif;
+    font-size:clamp(2.2rem, 5.5vw, 4.5rem);
+    color:var(--marigold);
+    text-shadow:0 4px 0 #7a4a00, 0 10px 30px rgba(0,0,0,.6);
+  }
+  .tagline{font-size:clamp(1rem,1.8vw,1.4rem); opacity:.85; margin-top:.5vh;}
+
+  .marquee{
+    display:inline-block; padding:1.8vh 3.5vw; border-radius:24px;
+    background:linear-gradient(180deg, #2a1655, #1a0d3a);
+    border:4px solid var(--marigold); position:relative;
+    box-shadow:0 0 60px rgba(244,185,66,.25), inset 0 0 40px rgba(0,0,0,.5);
+  }
+  .bulbs{
+    position:absolute; inset:8px; border-radius:18px;
+    background-image:radial-gradient(circle 5px, var(--marigold) 55%, transparent 60%);
+    background-size:34px 34px; background-repeat:repeat-x;
+    pointer-events:none;
+    -webkit-mask:linear-gradient(#000 12px, transparent 12px, transparent calc(100% - 12px), #000 calc(100% - 12px));
+            mask:linear-gradient(#000 12px, transparent 12px, transparent calc(100% - 12px), #000 calc(100% - 12px));
+    animation:twinkle 1.2s steps(2) infinite;
+  }
+  @keyframes twinkle{50%{opacity:.45;}}
+
+  .btn{
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size:clamp(1.15rem, 2.1vw, 1.8rem);
+    color:var(--night); background:var(--marigold);
+    border:none; border-radius:18px; padding:1.8vh 2.8vw;
+    box-shadow:0 6px 0 #9c6b00;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:focus, .btn.kb-focus{outline:6px solid var(--rani); outline-offset:4px; transform:scale(1.06);}
+  .btn:active{transform:scale(.98); box-shadow:0 2px 0 #9c6b00;}
+  .btn.pink{background:var(--rani); color:#fff; box-shadow:0 6px 0 #8f1d4e;}
+  .btn.pink:focus, .btn.pink.kb-focus{outline-color:var(--marigold);}
+  .btn.teal{background:var(--teal); color:#062a25; box-shadow:0 6px 0 #0d7a6c;}
+  .btn.grey{background:#8b86a0; color:#1a1530; box-shadow:0 6px 0 #4d4863;}
+  .btn.small{font-size:clamp(.95rem,1.55vw,1.25rem); padding:1.3vh 2vw;}
+
+  .level-card{
+    display:block; width:100%; max-width:720px; margin:1.4vh auto 0;
+    text-align:left; background:var(--card); color:var(--cream);
+    border:3px solid var(--marigold); border-radius:16px;
+    padding:1.4vh 2.2vw; box-shadow:0 5px 0 #3a2a09;
+    font-weight:700; font-size:clamp(1rem,1.8vw,1.45rem);
+    transition:transform .12s ease;
+  }
+  .level-card small{display:block; font-weight:500; opacity:.75; font-size:clamp(.8rem,1.35vw,1.05rem); margin-top:.2em;}
+  .level-card:focus, .level-card.kb-focus{outline:5px solid var(--rani); outline-offset:3px; transform:scale(1.02);}
+  .level-card .lv{color:var(--marigold); font-family:'Yatra One',serif; margin-right:.5em;}
+
+  .hud{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:clamp(1rem,1.7vw,1.35rem); font-weight:700;
+    margin-bottom:1.5vh; opacity:.95; gap:1vw;
+  }
+  .hud .score{color:var(--marigold);}
+  .team-chip{
+    padding:.3em .8em; border-radius:12px;
+    border:3px solid transparent;
+    background:var(--card);
+    transition:all .2s ease;
+    white-space:nowrap;
+  }
+  .team-chip.a{color:#7dd3fc;}
+  .team-chip.b{color:#fda4af;}
+  .team-chip.turn{
+    border-color:var(--marigold);
+    box-shadow:0 0 18px rgba(244,185,66,.5);
+    transform:scale(1.06);
+  }
+  .turn-banner{
+    font-size:clamp(1rem,1.9vw,1.5rem); font-weight:800;
+    color:var(--marigold); margin-bottom:.8vh;
+  }
+  .timer{
+    font-size:clamp(1.3rem,2.6vw,2.1rem);
+    color:var(--teal); font-weight:800;
+    min-width:4.5em;
+  }
+  .timer.warn{color:var(--red); animation:pulse .6s infinite;}
+  @keyframes pulse{50%{transform:scale(1.12); opacity:.75;}}
+
+  .clue-frame{
+    margin:0 auto 1vh; padding:1.6vh 2.5vw;
+    background:var(--card); border:3px solid var(--marigold); border-radius:20px;
+    max-width:940px; box-shadow:0 10px 40px rgba(0,0,0,.5);
+  }
+  .clue-label{
+    font-size:clamp(.85rem,1.4vw,1.1rem); letter-spacing:.25em;
+    text-transform:uppercase; color:var(--rani); font-weight:800;
+  }
+  .emoji{font-size:clamp(3rem, 7vw, 5.5rem); line-height:1.2; margin:1vh 0; letter-spacing:.08em;}
+  .keyhint{
+    display:inline-block;
+    font-size:clamp(1.1rem,2.2vw,1.7rem); font-weight:800;
+    color:var(--night); background:var(--marigold);
+    border-radius:12px; padding:.3em .9em; margin-top:.4vh;
+    letter-spacing:.04em;
+  }
+
+  .poster{
+    position:relative; max-width:760px; margin:1.2vh auto .8vh;
+    border-radius:14px; overflow:hidden;
+    border:3px solid var(--marigold);
+    box-shadow:0 8px 30px rgba(0,0,0,.55);
+    line-height:0;
+  }
+  .poster svg{width:100%; height:auto; display:block;}
+  .poster .cast{
+    position:absolute; left:0; right:0; bottom:5%;
+    text-align:center;
+    font-size:clamp(2.2rem, 5.5vw, 4rem);
+    letter-spacing:.1em; line-height:1;
+    text-shadow:0 3px 10px rgba(0,0,0,.6);
+    pointer-events:none;
+  }
+  .teaser{
+    font-size:clamp(1.05rem,2vw,1.5rem);
+    font-weight:700; color:var(--cream);
+    font-style:italic; margin-top:.6vh;
+  }
+  .hint-list{min-height:1.6em; font-size:clamp(.95rem,1.8vw,1.35rem); color:var(--teal); font-weight:700; line-height:1.55;}
+  .answer-reveal{
+    font-family:'Yatra One',serif; color:var(--marigold);
+    font-size:clamp(1.5rem,3.2vw,2.6rem); margin-top:.4vh; min-height:1.2em;
+  }
+
+  .options{display:grid; grid-template-columns:1fr 1fr; gap:2vh 2vw; max-width:1000px; margin:2vh auto 1.6vh;}
+  .opt{
+    background:var(--cream); color:var(--night); font-weight:800;
+    font-size:clamp(1.05rem,1.9vw,1.6rem);
+    border:none; border-radius:16px; padding:2vh 1.5vw;
+    box-shadow:0 5px 0 #b8a77e; transition:transform .12s ease; min-height:8.5vh;
+  }
+  .opt:focus, .opt.kb-focus{outline:6px solid var(--rani); outline-offset:4px; transform:scale(1.05); z-index:2; position:relative;}
+  .opt.correct{background:var(--teal); color:#062a25; box-shadow:0 5px 0 #0d7a6c;}
+  .opt.wrong{background:var(--red); color:#fff; box-shadow:0 5px 0 #7f1d1d;}
+  .opt:disabled{opacity:.95;}
+  .sub-row{display:flex; gap:2vw; justify-content:center; align-items:center; margin-top:1.4vh; flex-wrap:wrap;}
+  .feedback{min-height:1.7em; font-size:clamp(1.1rem,2.1vw,1.7rem); font-weight:800; margin-top:.8vh;}
+  .feedback.good{color:var(--teal);}
+  .feedback.bad{color:var(--red);}
+
+  .verdict{
+    font-family:'Yatra One', serif;
+    font-size:clamp(2.3rem,5.2vw,4.2rem);
+    color:var(--rani); text-shadow:0 4px 0 #5e0f33; margin:1.5vh 0;
+  }
+  .final-score{font-size:clamp(1.3rem,2.5vw,2.1rem); font-weight:800;}
+  .howto{margin-top:1.8vh; font-size:clamp(.85rem,1.4vw,1.1rem); opacity:.7;}
+  .hidden{display:none !important;}
+
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div id="flash-bad"></div>
+<div class="stage" id="stage">
+
+  <!-- TITLE / LEVEL SELECT -->
+  <section class="screen active" id="scr-title">
+    <div class="marquee">
+      <div class="bulbs"></div>
+      <h1>Filmy Guess</h1>
+      <p class="tagline">The Bollywood guessing game!</p>
+    </div>
+    <button class="level-card" id="btn-l1">
+      <span class="lv">Level 1</span> Team Battle: Multiple Choice — 20 rounds
+      <small>🎬 Team A vs 🍿 Team B, alternating questions. Emoji clue + 4 options. 10 pts each.</small>
+    </button>
+    <button class="level-card" id="btn-l2">
+      <span class="lv">Level 2</span> Movie Poster — 10 rounds
+      <small>Cartoon poster + story line. Guess out loud, then reveal &amp; score yourself. Up to 15 pts.</small>
+    </button>
+    <button class="level-card" id="btn-l3">
+      <span class="lv">Level 3</span> Beat the Clock: Movies — 15 rounds
+      <small>⏱️ 30 seconds! Just emojis + a 2-word hint. No mercy. Up to 15 pts.</small>
+    </button>
+    <button class="level-card" id="btn-l4">
+      <span class="lv">Level 4</span> Beat the Clock: Songs — 15 rounds
+      <small>⏱️ 30 seconds! Guess the famous song from emojis + a 2-word hint. Up to 15 pts.</small>
+    </button>
+    <p class="howto">D-pad to move • OK / Select to choose • No movie repeats across levels!</p>
+  </section>
+
+  <!-- LEVEL 1 GAME (Team battle) -->
+  <section class="screen" id="scr-g1">
+    <div class="hud">
+      <span class="team-chip a" id="l1-teamA">🎬 Team A: 0</span>
+      <span id="l1-round">Round 1 / 20</span>
+      <span class="team-chip b" id="l1-teamB">🍿 Team B: 0</span>
+    </div>
+    <div class="turn-banner" id="l1-turn">🎬 Team A — your question!</div>
+    <div class="clue-frame">
+      <div class="clue-label">Now Showing</div>
+      <div class="emoji" id="l1-emoji">🎬</div>
+      <div class="hint-list" id="l1-hint"></div>
+    </div>
+    <div class="options" id="l1-options">
+      <button class="opt"></button><button class="opt"></button>
+      <button class="opt"></button><button class="opt"></button>
+    </div>
+    <div class="feedback" id="l1-feedback"></div>
+    <div class="sub-row">
+      <button class="btn small pink" id="l1-btn-hint">💡 Hint</button>
+      <button class="btn small" id="l1-btn-next" style="visibility:hidden;">Next ➜</button>
+    </div>
+  </section>
+
+  <!-- LEVEL 2 GAME -->
+  <section class="screen" id="scr-g2">
+    <div class="hud">
+      <span id="l2-round">Round 1 / 10</span>
+      <span class="streak" id="l2-worth">Worth: 15 pts</span>
+      <span class="score" id="l2-score">Score: 0</span>
+    </div>
+    <div class="clue-frame">
+      <div class="clue-label">Which movie is this?</div>
+      <div class="poster" id="l2-poster"></div>
+      <div class="teaser" id="l2-teaser"></div>
+      <div class="hint-list" id="l2-hints"></div>
+      <div class="answer-reveal" id="l2-answer"></div>
+    </div>
+    <div class="sub-row" id="l2-row-guess">
+      <button class="btn small pink" id="l2-btn-hint">💡 Hint (1 of 3)</button>
+      <button class="btn small" id="l2-btn-reveal">🎬 Reveal Answer</button>
+    </div>
+    <div class="sub-row hidden" id="l2-row-judge">
+      <button class="btn small teal" id="l2-btn-got">✅ Got it!</button>
+      <button class="btn small grey" id="l2-btn-miss">❌ Missed it</button>
+    </div>
+    <div class="feedback" id="l2-feedback"></div>
+  </section>
+
+  <!-- LEVEL 3 & 4 GAME (timed) -->
+  <section class="screen" id="scr-g3">
+    <div class="hud">
+      <span id="l3-round">Round 1 / 15</span>
+      <span class="timer" id="l3-timer">⏱️ 30</span>
+      <span class="score" id="l3-score">Score: 0</span>
+    </div>
+    <div class="clue-frame">
+      <div class="clue-label" id="l3-label">Which movie is this?</div>
+      <div class="emoji" id="l3-emoji">🎬</div>
+      <div><span class="keyhint" id="l3-keyhint"></span></div>
+      <div class="hint-list" id="l3-hints"></div>
+      <div class="answer-reveal" id="l3-answer"></div>
+    </div>
+    <div class="sub-row" id="l3-row-guess">
+      <button class="btn small pink" id="l3-btn-hint">💡 Hint</button>
+      <button class="btn small" id="l3-btn-reveal">🎬 Reveal Answer</button>
+    </div>
+    <div class="sub-row hidden" id="l3-row-judge">
+      <button class="btn small teal" id="l3-btn-got">✅ Got it!</button>
+      <button class="btn small grey" id="l3-btn-miss">❌ Missed it</button>
+    </div>
+    <div class="sub-row hidden" id="l3-row-timeout">
+      <button class="btn small" id="l3-btn-next">Next ➜</button>
+    </div>
+    <div class="feedback" id="l3-feedback"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="screen" id="scr-end">
+    <div class="marquee">
+      <div class="bulbs"></div>
+      <div class="clue-label" style="letter-spacing:.3em;">Box Office Verdict</div>
+      <div class="verdict" id="verdict">Superhit!</div>
+      <div class="final-score" id="final-score"></div>
+    </div>
+    <div class="sub-row" style="margin-top:4vh;">
+      <button class="btn" id="btn-again">🔁 Play Again</button>
+      <button class="btn pink" id="btn-menu">🏠 Levels</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ================= FX: fireworks & rain =================
+var fxCanvas = document.getElementById('fx');
+var fxCtx = fxCanvas.getContext('2d');
+var fxParticles = [], fxRunning = false;
+function fxResize(){ fxCanvas.width=innerWidth; fxCanvas.height=innerHeight; }
+addEventListener('resize', fxResize); fxResize();
+var FX_COLORS=['#f4b942','#e93d82','#2dd4bf','#ff9f1c','#7dd3fc','#fdf3dc','#a78bfa'];
+function fxLoop(){
+  fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  for(var i=fxParticles.length-1;i>=0;i--){
+    var p=fxParticles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.life--;
+    if(p.type==='rain'){
+      fxCtx.strokeStyle='rgba(140,160,200,'+Math.min(1,p.life/40)+')';
+      fxCtx.lineWidth=2;
+      fxCtx.beginPath(); fxCtx.moveTo(p.x,p.y); fxCtx.lineTo(p.x-p.vx*2,p.y-p.vy*2); fxCtx.stroke();
+    } else {
+      fxCtx.globalAlpha=Math.max(0,Math.min(1,p.life/50));
+      fxCtx.fillStyle=p.color;
+      fxCtx.beginPath(); fxCtx.arc(p.x,p.y,p.r,0,6.283); fxCtx.fill();
+      fxCtx.globalAlpha=1;
+    }
+    if(p.life<=0 || p.y>fxCanvas.height+20) fxParticles.splice(i,1);
+  }
+  if(fxParticles.length){ requestAnimationFrame(fxLoop); }
+  else { fxRunning=false; fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height); }
+}
+function fxStart(){ if(!fxRunning){ fxRunning=true; requestAnimationFrame(fxLoop); } }
+function burst(x,y){
+  var color=FX_COLORS[Math.floor(Math.random()*FX_COLORS.length)];
+  for(var i=0;i<36;i++){
+    var a=Math.random()*6.283, s=2+Math.random()*5;
+    fxParticles.push({type:'spark', x:x, y:y,
+      vx:Math.cos(a)*s, vy:Math.sin(a)*s, g:0.06,
+      r:2+Math.random()*3, life:45+Math.random()*30,
+      color: Math.random()<0.7 ? color : FX_COLORS[Math.floor(Math.random()*FX_COLORS.length)]});
+  }
+}
+function celebrate(){
+  var w=fxCanvas.width, h=fxCanvas.height;
+  burst(w*0.25, h*0.3); 
+  setTimeout(function(){ burst(w*0.75, h*0.28); fxStart(); }, 180);
+  setTimeout(function(){ burst(w*0.5, h*0.18); fxStart(); }, 360);
+  setTimeout(function(){ burst(w*(0.2+Math.random()*0.6), h*0.35); fxStart(); }, 550);
+  fxStart();
+}
+function sadRain(){
+  for(var i=0;i<70;i++){
+    fxParticles.push({type:'rain',
+      x:Math.random()*fxCanvas.width, y:-20-Math.random()*fxCanvas.height*0.5,
+      vx:-1, vy:9+Math.random()*5, g:0.05, r:1, life:120});
+  }
+  fxStart();
+  var fb=document.getElementById('flash-bad');
+  fb.classList.add('on');
+  setTimeout(function(){ fb.classList.remove('on'); }, 500);
+  var st=document.getElementById('stage');
+  st.classList.remove('shake'); void st.offsetWidth; st.classList.add('shake');
+}
+
+// ================= Cartoon scene backdrops (SVG) =================
+var W='<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">';
+var SCENES = {
+train: W+
+ '<rect width="800" height="300" fill="#ff9a56"/><circle cx="650" cy="70" r="45" fill="#ffd166"/>'+
+ '<rect y="180" width="800" height="120" fill="#7cb26b"/>'+
+ '<path d="M0 200 Q200 170 400 200 T800 200 V300 H0 Z" fill="#5f9e50"/>'+
+ '<rect y="252" width="800" height="14" fill="#5b4632"/><g fill="#3e2f20">'+
+ '<rect x="10" y="250" width="8" height="18"/><rect x="90" y="250" width="8" height="18"/><rect x="170" y="250" width="8" height="18"/><rect x="250" y="250" width="8" height="18"/><rect x="330" y="250" width="8" height="18"/><rect x="410" y="250" width="8" height="18"/><rect x="490" y="250" width="8" height="18"/><rect x="570" y="250" width="8" height="18"/><rect x="650" y="250" width="8" height="18"/><rect x="730" y="250" width="8" height="18"/></g>'+
+ '<rect x="60" y="150" width="330" height="90" rx="12" fill="#c1440e"/>'+
+ '<rect x="40" y="170" width="50" height="70" rx="8" fill="#8f3007"/>'+
+ '<g fill="#ffe8b3"><rect x="110" y="170" width="45" height="35" rx="5"/><rect x="175" y="170" width="45" height="35" rx="5"/><rect x="240" y="170" width="45" height="35" rx="5"/><rect x="305" y="170" width="45" height="35" rx="5"/></g>'+
+ '<circle cx="110" cy="248" r="16" fill="#2b2b2b"/><circle cx="220" cy="248" r="16" fill="#2b2b2b"/><circle cx="330" cy="248" r="16" fill="#2b2b2b"/>'+
+ '<circle cx="45" cy="130" r="14" fill="#ffffff" opacity=".85"/><circle cx="70" cy="110" r="18" fill="#ffffff" opacity=".7"/><circle cx="100" cy="90" r="22" fill="#ffffff" opacity=".55"/></svg>',
+village: W+
+ '<rect width="800" height="300" fill="#ffcf6e"/><circle cx="130" cy="70" r="48" fill="#ff8c42"/>'+
+ '<path d="M0 190 Q200 130 420 185 T800 175 V300 H0Z" fill="#c9a24b"/>'+
+ '<rect y="220" width="800" height="80" fill="#9bbf5e"/>'+
+ '<path d="M470 235 h180 v-60 l-90 -45 -90 45 Z" fill="#a05a2c"/><path d="M470 175 l90 -45 90 45 Z" fill="#e0b45f"/>'+
+ '<rect x="540" y="195" width="40" height="40" fill="#5c3317"/>'+
+ '<g stroke="#7da24a" stroke-width="4"><line x1="40" y1="240" x2="40" y2="290"/><line x1="90" y1="235" x2="90" y2="290"/><line x1="140" y1="242" x2="140" y2="290"/><line x1="190" y1="236" x2="190" y2="290"/><line x1="240" y1="243" x2="240" y2="290"/><line x1="290" y1="238" x2="290" y2="290"/></g></svg>',
+college: W+
+ '<rect width="800" height="300" fill="#8ecae6"/><circle cx="690" cy="60" r="35" fill="#ffe45e"/>'+
+ '<rect x="150" y="90" width="500" height="170" fill="#e8d8b0"/>'+
+ '<path d="M130 90 h540 l-40 -45 h-460 Z" fill="#c1440e"/>'+
+ '<circle cx="400" cy="115" r="20" fill="#fff"/><line x1="400" y1="115" x2="400" y2="103" stroke="#333" stroke-width="3"/><line x1="400" y1="115" x2="409" y2="118" stroke="#333" stroke-width="3"/>'+
+ '<g fill="#7a5c2e"><rect x="180" y="150" width="40" height="60"/><rect x="260" y="150" width="40" height="60"/><rect x="500" y="150" width="40" height="60"/><rect x="580" y="150" width="40" height="60"/></g>'+
+ '<rect x="360" y="180" width="80" height="80" fill="#5c3317"/>'+
+ '<rect y="260" width="800" height="40" fill="#9bbf5e"/></svg>',
+stadium: W+
+ '<rect width="800" height="300" fill="#4d908e"/>'+
+ '<ellipse cx="400" cy="330" rx="430" ry="180" fill="#57a05a"/>'+
+ '<ellipse cx="400" cy="330" rx="300" ry="120" fill="#79c07c"/>'+
+ '<rect x="360" y="230" width="80" height="60" fill="#d9c58a"/>'+
+ '<g fill="#e9edc9"><ellipse cx="400" cy="120" rx="420" ry="90" opacity=".35"/></g>'+
+ '<g fill="#fff"><circle cx="120" cy="70" r="6"/><circle cx="680" cy="70" r="6"/></g>'+
+ '<g stroke="#dcdcdc" stroke-width="6"><line x1="120" y1="76" x2="120" y2="150"/><line x1="680" y1="76" x2="680" y2="150"/></g>'+
+ '<g fill="#ffd166"><rect x="95" y="40" width="50" height="26" rx="6"/><rect x="655" y="40" width="50" height="26" rx="6"/></g></svg>',
+city: W+
+ '<rect width="800" height="300" fill="#1b2145"/><circle cx="680" cy="60" r="30" fill="#f5f3ce"/>'+
+ '<g fill="#2e3a6e"><rect x="30" y="120" width="90" height="180"/><rect x="150" y="80" width="110" height="220"/><rect x="290" y="140" width="80" height="160"/><rect x="400" y="60" width="120" height="240"/><rect x="550" y="120" width="90" height="180"/><rect x="670" y="150" width="100" height="150"/></g>'+
+ '<g fill="#ffd166"><rect x="45" y="140" width="14" height="14"/><rect x="75" y="170" width="14" height="14"/><rect x="170" y="100" width="14" height="14"/><rect x="210" y="140" width="14" height="14"/><rect x="170" y="190" width="14" height="14"/><rect x="420" y="90" width="14" height="14"/><rect x="460" y="130" width="14" height="14"/><rect x="490" y="180" width="14" height="14"/><rect x="570" y="150" width="14" height="14"/><rect x="600" y="200" width="14" height="14"/><rect x="700" y="180" width="14" height="14"/><rect x="310" y="170" width="14" height="14"/></g></svg>',
+palace: W+
+ '<rect width="800" height="300" fill="#f8ad6f"/><circle cx="120" cy="70" r="42" fill="#ffdf7e"/>'+
+ '<rect x="180" y="150" width="440" height="150" fill="#b0413e"/>'+
+ '<path d="M330 150 a70 70 0 0 1 140 0 Z" fill="#f5d491"/>'+
+ '<rect x="392" y="60" width="16" height="30" fill="#f5d491"/><circle cx="400" cy="58" r="8" fill="#ffdf7e"/>'+
+ '<g fill="#f5d491"><path d="M200 150 a30 30 0 0 1 60 0 Z"/><path d="M540 150 a30 30 0 0 1 60 0 Z"/></g>'+
+ '<g fill="#7a2422"><path d="M250 300 v-70 a25 25 0 0 1 50 0 v70 Z"/><path d="M375 300 v-80 a25 25 0 0 1 50 0 v80 Z"/><path d="M500 300 v-70 a25 25 0 0 1 50 0 v70 Z"/></g></svg>',
+mountains: W+
+ '<rect width="800" height="300" fill="#a8d8ea"/><circle cx="670" cy="65" r="38" fill="#fff3b0"/>'+
+ '<path d="M-40 300 L200 90 L420 300 Z" fill="#5c7a99"/><path d="M160 300 L400 60 L660 300 Z" fill="#6f8fae"/><path d="M420 300 L620 120 L840 300 Z" fill="#5c7a99"/>'+
+ '<path d="M180 113 L200 90 L222 113 L206 118 Z" fill="#fff"/><path d="M375 87 L400 60 L428 90 L402 98 Z" fill="#fff"/><path d="M600 140 L620 120 L642 140 L620 148 Z" fill="#fff"/>'+
+ '<path d="M0 300 Q200 260 400 285 T800 280 V300 Z" fill="#79c07c"/></svg>',
+road: W+
+ '<rect width="800" height="300" fill="#ffd97d"/><circle cx="400" cy="90" r="46" fill="#ff9f1c"/>'+
+ '<path d="M0 210 Q250 160 500 205 T800 195 V300 H0Z" fill="#c8965a"/>'+
+ '<path d="M330 300 L400 150 L470 300 Z" fill="#4a4a4a"/>'+
+ '<g fill="#fff"><rect x="396" y="270" width="8" height="20"/><rect x="397" y="235" width="6" height="16"/><rect x="398" y="205" width="5" height="12"/><rect x="399" y="180" width="4" height="9"/></g>'+
+ '<g fill="#3f7d3f"><circle cx="120" cy="215" r="22"/><rect x="114" y="215" width="12" height="30"/><circle cx="700" cy="205" r="20"/><rect x="694" y="205" width="12" height="28"/></g></svg>',
+hospital: W+
+ '<rect width="800" height="300" fill="#bde0fe"/>'+
+ '<rect x="220" y="80" width="360" height="200" fill="#f1f6f9"/>'+
+ '<rect x="360" y="200" width="80" height="80" fill="#6096ba"/>'+
+ '<g fill="#a3cef1"><rect x="250" y="110" width="40" height="35"/><rect x="320" y="110" width="40" height="35"/><rect x="440" y="110" width="40" height="35"/><rect x="510" y="110" width="40" height="35"/><rect x="250" y="165" width="40" height="35"/><rect x="510" y="165" width="40" height="35"/></g>'+
+ '<circle cx="400" cy="120" r="35" fill="#fff" stroke="#dc2f2f" stroke-width="4"/><rect x="390" y="100" width="20" height="40" fill="#dc2f2f"/><rect x="380" y="110" width="40" height="20" fill="#dc2f2f"/>'+
+ '<rect y="280" width="800" height="20" fill="#9bbf5e"/></svg>',
+stage: W+
+ '<rect width="800" height="300" fill="#3a0f2e"/>'+
+ '<path d="M0 0 h800 v40 q-400 60 -800 0 Z" fill="#8c1d40"/>'+
+ '<path d="M0 0 q60 160 40 300 H0 Z" fill="#8c1d40"/><path d="M800 0 q-60 160 -40 300 H800 Z" fill="#8c1d40"/>'+
+ '<path d="M400 30 L280 300 H520 Z" fill="#ffe9a0" opacity=".35"/>'+
+ '<path d="M200 30 L100 300 H300 Z" fill="#ffe9a0" opacity=".2"/><path d="M600 30 L500 300 H700 Z" fill="#ffe9a0" opacity=".2"/>'+
+ '<rect y="260" width="800" height="40" fill="#5c3a1e"/></svg>',
+haunted: W+
+ '<rect width="800" height="300" fill="#191430"/><circle cx="650" cy="70" r="42" fill="#e8e4d8"/>'+
+ '<g fill="#0e0b20"><path d="M250 300 v-140 h60 v-40 l40 -30 40 30 v40 h60 v140 Z"/><rect x="230" y="150" width="30" height="150"/><rect x="440" y="150" width="30" height="150"/><path d="M225 150 h40 l-20 -30 Z"/><path d="M435 150 h40 l-20 -30 Z"/></g>'+
+ '<g fill="#ffd166" opacity=".9"><rect x="300" y="200" width="22" height="28"/><rect x="378" y="200" width="22" height="28"/></g>'+
+ '<g fill="#0e0b20"><path d="M120 90 q10 -14 20 0 q10 -14 20 0 l-20 12 Z"/><path d="M540 50 q8 -12 16 0 q8 -12 16 0 l-16 10 Z"/></g>'+
+ '<path d="M0 300 q200 -30 400 -12 t400 0 V300 Z" fill="#241d42"/></svg>',
+arena: W+
+ '<rect width="800" height="300" fill="#432818"/>'+
+ '<g fill="#6f4518"><circle cx="60" cy="60" r="8"/><circle cx="120" cy="45" r="8"/><circle cx="180" cy="62" r="8"/><circle cx="240" cy="48" r="8"/><circle cx="300" cy="60" r="8"/><circle cx="500" cy="60" r="8"/><circle cx="560" cy="45" r="8"/><circle cx="620" cy="62" r="8"/><circle cx="680" cy="48" r="8"/><circle cx="740" cy="60" r="8"/></g>'+
+ '<rect x="120" y="150" width="560" height="130" fill="#c9a227"/>'+
+ '<g stroke="#e63946" stroke-width="8"><line x1="120" y1="170" x2="680" y2="170"/><line x1="120" y1="205" x2="680" y2="205"/><line x1="120" y1="240" x2="680" y2="240"/></g>'+
+ '<g fill="#2b2b2b"><rect x="108" y="140" width="20" height="150"/><rect x="672" y="140" width="20" height="150"/></g></svg>',
+sky: W+
+ '<rect width="800" height="300" fill="#0b1026"/>'+
+ '<g fill="#fff"><circle cx="80" cy="50" r="3"/><circle cx="180" cy="90" r="2"/><circle cx="300" cy="40" r="3"/><circle cx="420" cy="100" r="2"/><circle cx="540" cy="50" r="3"/><circle cx="660" cy="90" r="2"/><circle cx="740" cy="40" r="3"/><circle cx="120" cy="160" r="2"/><circle cx="700" cy="170" r="2"/></g>'+
+ '<circle cx="620" cy="80" r="34" fill="#cdd7f0"/>'+
+ '<ellipse cx="400" cy="140" rx="90" ry="30" fill="#7f88ff"/><path d="M340 140 a60 40 0 0 1 120 0 Z" fill="#b8c0ff"/>'+
+ '<g fill="#ffe45e"><circle cx="330" cy="180" r="5"/><circle cx="400" cy="188" r="5"/><circle cx="470" cy="180" r="5"/></g>'+
+ '<path d="M0 300 q200 -40 400 -20 t400 -10 V300 Z" fill="#1d2547"/></svg>',
+border: W+
+ '<rect width="800" height="300" fill="#e07a5f"/><circle cx="140" cy="70" r="40" fill="#f2cc8f"/>'+
+ '<rect y="230" width="800" height="70" fill="#8a5a44"/>'+
+ '<g stroke="#3d405b" stroke-width="6"><line x1="100" y1="160" x2="100" y2="250"/><line x1="300" y1="160" x2="300" y2="250"/><line x1="500" y1="160" x2="500" y2="250"/><line x1="700" y1="160" x2="700" y2="250"/><line x1="60" y1="180" x2="740" y2="180"/><line x1="60" y1="215" x2="740" y2="215"/></g>'+
+ '<rect x="580" y="90" width="70" height="80" fill="#3d405b"/><path d="M570 90 h90 l-10 -22 h-70 Z" fill="#2b2d42"/><rect x="600" y="110" width="30" height="22" fill="#f2cc8f"/></svg>',
+wedding: W+
+ '<rect width="800" height="300" fill="#ffe5ec"/>'+
+ '<path d="M200 300 v-160 a200 110 0 0 1 400 0 v160" fill="none" stroke="#c9184a" stroke-width="18"/>'+
+ '<g fill="#ff9f1c"><circle cx="230" cy="180" r="10"/><circle cx="270" cy="150" r="10"/><circle cx="320" cy="128" r="10"/><circle cx="400" cy="118" r="10"/><circle cx="480" cy="128" r="10"/><circle cx="530" cy="150" r="10"/><circle cx="570" cy="180" r="10"/></g>'+
+ '<g fill="#ffb703"><rect x="190" y="270" width="420" height="30" rx="8"/></g>'+
+ '<g fill="#e63946"><circle cx="250" cy="230" r="8"/><circle cx="400" cy="240" r="8"/><circle cx="550" cy="230" r="8"/></g></svg>',
+beach: W+
+ '<rect width="800" height="300" fill="#90e0ef"/><circle cx="660" cy="70" r="42" fill="#ffe45e"/>'+
+ '<rect y="160" width="800" height="80" fill="#0096c7"/>'+
+ '<path d="M0 240 q100 20 200 0 t200 0 t200 0 t200 0 V300 H0 Z" fill="#f6d7a7"/>'+
+ '<g stroke="#2a9d8f" stroke-width="10" fill="none"><path d="M120 240 q-10 -80 -6 -110"/><path d="M114 132 q-40 -18 -66 0 M114 132 q6 -34 34 -44 M114 132 q40 -14 60 8 M114 132 q-4 30 -30 42"/></g>'+
+ '<path d="M300 200 q20 -14 40 0 M500 190 q20 -14 40 0" stroke="#fff" stroke-width="5" fill="none"/></svg>'
+};
+
+// ================= Movie data =================
+// [title, emoji-cast, year, stars, scene, teaser, twoWordHint]
+var MOVIES = [
+["Sholay","🤠🤠🔫",1975,"Amitabh Bachchan & Dharmendra","village","Two hired outlaws protect a village from a feared dacoit.","dacoit revenge"],
+["Dilwale Dulhania Le Jayenge","🧑‍🤝‍🧑🧡",1995,"Shah Rukh Khan & Kajol","train","Love blooms on a Europe trip; he follows her to Punjab to win over her strict father.","mustard fields"],
+["3 Idiots","🤪🤓😅",2009,"Aamir Khan","college","Two friends hunt for their genius college buddy who taught them to chase excellence, not marks.","engineering friends"],
+["Lagaan","🏏👨‍🌾",2001,"Aamir Khan","stadium","A village bets triple taxes on one cricket match against British officers.","cricket taxes"],
+["Dhoom","🏍️👮💰",2004,"John Abraham & Abhishek Bachchan","city","A cop and a mechanic chase a slick bike gang of robbers.","bike heist"],
+["Kabhi Khushi Kabhie Gham","👨‍👩‍👦‍👦💔",2001,"Shah Rukh Khan & Amitabh Bachchan","palace","A wealthy family breaks apart when the elder son marries for love.","family separation"],
+["Zindagi Na Milegi Dobara","🚗🪂🐂",2011,"Hrithik Roshan, Farhan & Abhay","road","Three friends on a Spain road trip face their deepest fears — and a bull run.","Spain trip"],
+["Chennai Express","🏃💃🌴",2013,"Shah Rukh Khan & Deepika Padukone","train","A simple train journey south spirals into a runaway adventure with a don's daughter.","southern journey"],
+["Barfi!","🤫🚲❤️",2012,"Ranbir Kapoor & Priyanka Chopra","mountains","A charming young man who cannot speak finds a love that needs no words in Darjeeling.","silent love"],
+["Queen","👰🎒🗼",2013,"Kangana Ranaut","road","Dumped before her wedding, she goes on the honeymoon alone — to Paris and Amsterdam.","solo honeymoon"],
+["PK","👽📻",2014,"Aamir Khan","sky","A stranded visitor from another planet innocently questions everything humans believe.","alien questions"],
+["Bajrangi Bhaijaan","🙏👧",2015,"Salman Khan","border","A devout, honest man vows to take a lost mute little girl home across the border.","lost child"],
+["Dangal","🤼‍♀️🥇",2016,"Aamir Khan","arena","A former wrestler trains his daughters to win gold for India.","wrestling daughters"],
+["Gully Boy","🎤✍️",2019,"Ranveer Singh & Alia Bhatt","city","A young man from a Mumbai slum rises as a street rapper.","slum rapper"],
+["Taare Zameen Par","👦🎨⭐",2007,"Aamir Khan & Darsheel Safary","college","A struggling boy with dyslexia blooms when an art teacher believes in him.","special child"],
+["Swades","🚀💡🇮🇳",2004,"Shah Rukh Khan","village","A NASA scientist returns to his roots and brings electricity to a village.","NASA village"],
+["Rang De Basanti","🎨✈️🕯️",2006,"Aamir Khan","college","College friends filming a documentary on freedom fighters awaken to fight corruption today.","youth awakening"],
+["Om Shanti Om","🎬🔥🔄",2007,"Shah Rukh Khan & Deepika Padukone","stage","A junior artist from the 70s is reborn to avenge the star he loved.","reincarnated actor"],
+["Jab We Met","🗣️😄🏔️",2007,"Shahid Kapoor & Kareena Kapoor","train","A non-stop talker who missed her train turns a heartbroken businessman's life around.","talkative runaway"],
+["Rockstar","🎸💔",2011,"Ranbir Kapoor","stage","A simple college boy's heartbreak fuels his rise into a stormy music legend.","heartbroken musician"],
+["Dil Chahta Hai","👬👬🌊",2001,"Aamir Khan, Saif & Akshaye","beach","Three best friends, one Goa trip, and the messy business of growing up and falling in love.","Goa friends"],
+["Kal Ho Naa Ho","😇💔🗽",2003,"Shah Rukh Khan","city","A dying man secretly plays cupid for the New York woman he loves.","dying cupid"],
+["Munna Bhai M.B.B.S.","🩺🤗😂",2003,"Sanjay Dutt","hospital","A lovable Mumbai goon fakes his way into medical college — and heals with hugs.","gangster doctor"],
+["Andhadhun","🎹🙈🔪",2018,"Ayushmann Khurrana & Tabu","stage","A pianist pretending to be blind 'witnesses' a murder — and can't tell anyone.","blind pianist"],
+["Drishyam","👁️📅🕳️",2015,"Ajay Devgn & Tabu","village","A cable TV owner builds the perfect alibi to shield his family from a police hunt.","perfect alibi"],
+["Piku","🚗👨‍👧😤",2015,"Deepika Padukone & Amitabh Bachchan","road","A daughter, her stubborn father, and his famous stomach troubles on a Delhi–Kolkata road trip.","grumpy father"],
+["Sultan","🤼🏆💔",2016,"Salman Khan & Anushka Sharma","arena","A retired Haryanvi wrestler fights back into the ring to win back his family's respect.","comeback wrestler"],
+["War","🕶️✈️🤜",2019,"Hrithik Roshan & Tiger Shroff","city","An elite agent is ordered to hunt down his own rogue mentor.","rogue mentor"],
+["Pathaan","🕵️‍♂️❄️💥",2023,"Shah Rukh Khan & Deepika Padukone","mountains","An exiled spy returns from the cold to stop a deadly attack on India.","exiled spy"],
+["Jawan","👨‍🦲🎭🚇",2023,"Shah Rukh Khan","train","A vigilante with many faces hijacks a metro train to force justice.","metro hijack"],
+["Gadar: Ek Prem Katha","💪🚂🇮🇳",2001,"Sunny Deol","border","A truck driver storms across the border to bring his wife back home.","handpump hero"],
+["Kuch Kuch Hota Hai","🏀💕📿",1998,"Shah Rukh Khan, Kajol & Rani","college","A little girl reunites her widowed father with his tomboy college best friend.","college reunion"],
+["Hum Aapke Hain Koun..!","👰🐕💌",1994,"Salman Khan & Madhuri Dixit","wedding","Two families joined by a wedding; love blooms, and a dog delivers the deciding letter.","wedding families"],
+["Mughal-e-Azam","👑💃⚔️",1960,"Dilip Kumar & Madhubala","palace","A prince defies the emperor for the love of a court dancer.","Anarkali romance"],
+["Mother India","👩🌾💪",1957,"Nargis","village","A mother battles floods, debt, and fate to raise her sons with honor.","sacrificing mother"],
+["Bhool Bhulaiyaa","👻💃🧠",2007,"Akshay Kumar & Vidya Balan","haunted","A psychiatrist unravels the mystery of a haunted mansion's locked room.","haunted mansion"],
+["Stree","👻👗🧔",2018,"Rajkummar Rao & Shraddha Kapoor","haunted","In a small town, men vanish at night — taken by a spirit who reads a warning on every wall.","vanishing men"],
+["12th Fail","📚🚔💯",2023,"Vikrant Massey","college","A boy from a poor village restarts from zero to crack India's toughest exam.","UPSC restart"],
+["Chak De! India","🏑🥅🇮🇳",2007,"Shah Rukh Khan","stadium","A disgraced coach leads the women's hockey team to the World Cup.","hockey coach"],
+["Hera Pheri","☎️💰😂",2000,"Akshay Kumar, Suniel & Paresh","city","A wrong-number ransom call turns three broke men's lives upside down.","ransom call"],
+["Mary Kom","🥊👩🥇",2014,"Priyanka Chopra","arena","A boxer from Manipur punches her way to world titles — even after motherhood.","boxing mother"],
+["Uri: The Surgical Strike","🪖🌙🔥",2019,"Vicky Kaushal","border","Soldiers avenge an army base attack with a covert night strike. How's the josh?","night strike"],
+["Bhaag Milkha Bhaag","🏃🥇",2013,"Farhan Akhtar","arena","A runner races past his painful Partition childhood toward Olympic glory.","flying Sikh"],
+["English Vinglish","👩‍🍳📖🗽",2012,"Sridevi","city","A homemaker mocked for her English secretly joins classes in New York — and earns respect.","English classes"],
+["Vicky Donor","👨🍼😂",2012,"Ayushmann Khurrana","hospital","A carefree Delhi boy becomes a clinic's star 'donor' — until love complicates things.","unusual donor"],
+["Badhaai Ho","🤰👵😲",2018,"Ayushmann Khurrana","hospital","A grown man is mortified when his middle-aged mother announces she's expecting.","late pregnancy"],
+["Raazi","🕵️‍♀️💍📻",2018,"Alia Bhatt","border","A young Indian bride spies for her country from inside a Pakistani military family.","undercover bride"],
+["Baazigar","🃏😈💔",1993,"Shah Rukh Khan & Kajol","city","A charming young man romances two sisters as part of an ice-cold revenge plan.","revenge romance"],
+["Devdas","🍷💔💃",2002,"Shah Rukh Khan, Aishwarya & Madhuri","palace","A wealthy heir drowns his lost first love in drink, between two women who love him.","drunken heartbreak"],
+["Krrish","🦸🖤⚡",2006,"Hrithik Roshan","sky","A gifted village boy with superhuman powers becomes a masked hero.","masked superhero"],
+["Golmaal","😂🚗🏠",2006,"Ajay Devgn","city","Four crooks hide out in a blind couple's bungalow, pretending to be one grandson.","blind bungalow"],
+["My Name Is Khan","🧳🇺🇸🙏",2010,"Shah Rukh Khan & Kajol","city","A man with Asperger's crosses America to tell the President: 'My name is ___, and I am not a terrorist.'","president journey"],
+["Bajirao Mastani","⚔️👑🔥",2015,"Ranveer Singh & Deepika Padukone","palace","A warrior Peshwa's forbidden second love sparks a storm in his court and home.","forbidden queen"],
+["Padmaavat","👸🔥🛡️",2018,"Deepika Padukone & Ranveer Singh","palace","A legendary Rajput queen defends her honor against an obsessed invader.","Rajput honor"]
+];
+
+// ================= Song data (Level 4) =================
+// [title, emoji, movie, year, twoWordHint]
+var SONGS = [
+["Chaiyya Chaiyya","🚂🕺🎶","Dil Se",1998,"train dance"],
+["Tujhe Dekha To","🌾💛🎻","Dilwale Dulhania Le Jayenge",1995,"mustard serenade"],
+["Yeh Dosti","🏍️👬🎶","Sholay",1975,"friendship anthem"],
+["Mere Sapno Ki Rani","🚂🚙🌹","Aradhana",1969,"jeep serenade"],
+["Pyar Hua Iqrar Hua","☔🌧️❤️","Shree 420",1955,"umbrella romance"],
+["Mera Joota Hai Japani","👞🇯🇵🚶","Shree 420",1955,"Japanese shoes"],
+["Ek Do Teen","🔢💃","Tezaab",1988,"counting dance"],
+["Kajra Re","👀🖤💃","Bunty Aur Babli",2005,"kohl eyes"],
+["Kal Ho Naa Ho","😇🌅🎹","Kal Ho Naa Ho",2003,"seize today"],
+["Tum Hi Ho","❤️🌧️🤍","Aashiqui 2",2013,"rain embrace"],
+["Channa Mereya","💔🎤🎊","Ae Dil Hai Mushkil",2016,"wedding heartbreak"],
+["Badtameez Dil","🕺🎩🥁","Yeh Jawaani Hai Deewani",2013,"shameless heart"],
+["Balam Pichkari","🔫🎨🌈","Yeh Jawaani Hai Deewani",2013,"Holi splash"],
+["Kabira","🧳💛🌅","Yeh Jawaani Hai Deewani",2013,"wandering saint"],
+["London Thumakda","💃🥁🎊","Queen",2014,"wedding bhangra"],
+["Gallan Goodiyaan","🎉👨‍👩‍👧‍👦🕺","Dil Dhadakne Do",2015,"family party"],
+["Desi Girl","💃🇮🇳✨","Dostana",2008,"homegrown diva"],
+["Ghoomar","💃👑🌀","Padmaavat",2018,"royal twirl"],
+["Malhari","🥁⚔️🎉","Bajirao Mastani",2015,"victory madness"],
+["Nagada Sang Dhol","🥁💃🔥","Goliyon Ki Raasleela Ram-Leela",2013,"garba beats"],
+["Lungi Dance","🩳🕺😎","Chennai Express",2013,"Rajini tribute"],
+["Gerua","🧡🏔️🌊","Dilwale",2015,"ochre love"],
+["Kesariya","🧡🎆🕌","Brahmastra",2022,"saffron love"],
+["Apna Time Aayega","🎤⏰🔥","Gully Boy",2019,"rap anthem"],
+["Senorita","🎸🇪🇸🍷","Zindagi Na Milegi Dobara",2011,"Spanish serenade"],
+["Bole Chudiyan","💍👰💃","Kabhi Khushi Kabhie Gham",2001,"talking bangles"],
+["Maahi Ve","💃🎊🕺","Kal Ho Naa Ho",2003,"wedding celebration"],
+["Kala Chashma","🕶️😎🎶","Baar Baar Dekho",2016,"black shades"],
+["Chammak Challo","🤖💃🎵","Ra.One",2011,"robot romance"],
+["Munni Badnaam Hui","💃🔥🎵","Dabangg",2010,"item sensation"],
+["Sheila Ki Jawani","💃✨🎵","Tees Maar Khan",2010,"youthful swagger"],
+["Jai Ho","🏆🚉🙌","Slumdog Millionaire",2008,"victory chant"],
+["Dard-E-Disco","🕺💔🪩","Om Shanti Om",2007,"disco pain"],
+["Chura Liya Hai","🎸💘🥂","Yaadon Ki Baaraat",1973,"stolen heart"],
+["Swag Se Swagat","😎🎉🕺","Tiger Zinda Hai",2017,"swagger welcome"],
+["Zingaat","🕺⚡🥁","Dhadak",2019,"frenzy beats"]
+];
+
+// ================= Fun Hindi reactions =================
+var GOOD_MSGS = [
+"✅ Shabaash! 🎉","✅ Kya baat hai! 👏","✅ Ekdum jhakaas! 😎","✅ Wah wah wah! 🙌",
+"✅ Chha gaye guru! ⭐","✅ Full paisa vasool! 💰","✅ Zabardast! 🔥","✅ Aap toh filmy nikle! 🎬",
+"✅ First class! 🥇","✅ Dil jeet liya! ❤️"
+];
+var BAD_MSGS = [
+"❌ Arre yaar! 😅","❌ Koi na, agli baar pakka! 💪","❌ Itna easy tha, boss! 😜",
+"❌ Dhyaan kidhar hai? 😄","❌ Thoda aur filmy bano! 🎬","❌ Popcorn kha ke wapas aao! 🍿",
+"❌ Picture abhi baaki hai! 🎥","❌ Aiyyo, miss ho gaya! 🙈","❌ Chinta mat karo, hero! 😎"
+];
+var TIMEOUT_MSGS = [
+"⏰ Time up! Ghadi ki sui rukti nahi! 😄","⏰ Time up! Jaldi socho, jaldi bolo! 🏃",
+"⏰ Time up! Interval ho gaya! 🍿","⏰ Time up! Agli baar fatafat! ⚡"
+];
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+var L1_ROUNDS = 20, L2_ROUNDS = 10, L34_ROUNDS = 15, TIMER_SECS = 30;
+var state = {};
+
+// ---------- No-repeat deck drawing (session-wide) ----------
+var usedMovies = {}, usedSongs = {};
+function drawDeck(pool, n, used){
+  var fresh = shuffle(pool.filter(function(m){ return !used[m[0]]; }));
+  var sel;
+  if(fresh.length >= n){
+    sel = fresh.slice(0, n);
+  } else {
+    // pool exhausted this session: take what's fresh, reset, refill the rest
+    sel = fresh.slice();
+    for(var k in used) delete used[k];
+    var chosen = {};
+    sel.forEach(function(m){ chosen[m[0]]=true; });
+    var rest = shuffle(pool.filter(function(m){ return !chosen[m[0]]; }));
+    sel = sel.concat(rest.slice(0, n - sel.length));
+  }
+  sel.forEach(function(m){ used[m[0]]=true; });
+  return sel;
+}
+
+// ---------- Screens ----------
+var screens = {
+  title: document.getElementById('scr-title'),
+  g1: document.getElementById('scr-g1'),
+  g2: document.getElementById('scr-g2'),
+  g3: document.getElementById('scr-g3'),
+  end: document.getElementById('scr-end')
+};
+function show(name){
+  for (var k in screens) screens[k].classList.remove('active');
+  screens[name].classList.add('active');
+  buildFocus(name);
+}
+
+// ---------- D-pad focus management ----------
+var focusables = [], focusIdx = 0, navMap = {};
+function $(id){ return document.getElementById(id); }
+
+function buildFocus(name){
+  if(name==='title'){
+    focusables=[$('btn-l1'), $('btn-l2'), $('btn-l3'), $('btn-l4')];
+    navMap={0:{down:1},1:{up:0,down:2},2:{up:1,down:3},3:{up:2}};
+  } else if(name==='end'){
+    focusables=[$('btn-again'), $('btn-menu')];
+    navMap={0:{right:1},1:{left:0}};
+  } else if(name==='g1'){
+    var opts=[].slice.call(document.querySelectorAll('#l1-options .opt'));
+    focusables=opts.concat([$('l1-btn-hint'), $('l1-btn-next')]);
+    navMap={
+      0:{right:1,down:2}, 1:{left:0,down:3},
+      2:{up:0,right:3,down:4}, 3:{up:1,left:2,down:5},
+      4:{up:2,right:5}, 5:{up:3,left:4}
+    };
+  } else if(name==='g2'){ rebuildL2Focus(); return; }
+  else if(name==='g3'){ rebuildL3Focus(); return; }
+  setFocus(0);
+}
+function rebuildL2Focus(){
+  var judging = !$('l2-row-judge').classList.contains('hidden');
+  focusables = judging ? [$('l2-btn-got'), $('l2-btn-miss')] : [$('l2-btn-hint'), $('l2-btn-reveal')];
+  navMap={0:{right:1},1:{left:0}};
+  setFocus(judging ? 0 : ( $('l2-btn-hint').disabled ? 1 : 0 ));
+}
+function rebuildL3Focus(){
+  if(!$('l3-row-timeout').classList.contains('hidden')){
+    focusables=[$('l3-btn-next')]; navMap={}; setFocus(0); return;
+  }
+  var judging = !$('l3-row-judge').classList.contains('hidden');
+  focusables = judging ? [$('l3-btn-got'), $('l3-btn-miss')] : [$('l3-btn-hint'), $('l3-btn-reveal')];
+  navMap={0:{right:1},1:{left:0}};
+  setFocus(judging ? 0 : ( $('l3-btn-hint').disabled ? 1 : 0 ));
+}
+function setFocus(i){
+  focusables.forEach(function(el){ el.classList.remove('kb-focus'); });
+  focusIdx=i;
+  var el=focusables[i];
+  if(el){ el.classList.add('kb-focus'); el.focus({preventScroll:true}); }
+}
+function move(dir){
+  if(!focusables.length) return;
+  var target = navMap[focusIdx] && navMap[focusIdx][dir];
+  var guard=0;
+  while(target!==undefined && guard++<8){
+    var el=focusables[target];
+    var hidden = el.style.visibility==='hidden' || el.disabled;
+    if(!hidden){ setFocus(target); return; }
+    target = navMap[target] && navMap[target][dir];
+  }
+}
+document.addEventListener('keydown', function(e){
+  var k=e.key;
+  if(k==='ArrowUp'){ move('up'); e.preventDefault(); }
+  else if(k==='ArrowDown'){ move('down'); e.preventDefault(); }
+  else if(k==='ArrowLeft'){ move('left'); e.preventDefault(); }
+  else if(k==='ArrowRight'){ move('right'); e.preventDefault(); }
+  else if(k==='Enter' || k===' '){
+    var el=focusables[focusIdx];
+    if(el && !el.disabled && el.style.visibility!=='hidden'){ el.click(); e.preventDefault(); }
+  }
+});
+
+// ---------- Sounds ----------
+var ac=null;
+function beep(freqs, dur){
+  dur = dur || 0.12;
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    freqs.forEach(function(f,i){
+      var o=ac.createOscillator(), g=ac.createGain();
+      o.type='triangle'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.15, ac.currentTime + i*dur);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + (i+1)*dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(ac.currentTime + i*dur); o.stop(ac.currentTime + (i+1)*dur);
+    });
+  }catch(err){}
+}
+
+// ---------- Helpers ----------
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var t=a[i]; a[i]=a[j]; a[j]=t;
+  }
+  return a;
+}
+function letterPattern(title){
+  return title.split(' ').map(function(w){
+    return w.charAt(0) + w.slice(1).replace(/[A-Za-z0-9]/g,'_');
+  }).join(' ');
+}
+
+// ---------- Level 1: Team battle multiple choice ----------
+var TEAM_NAMES = ['🎬 Team A', '🍿 Team B'];
+function startL1(){
+  state = { level:1, deck:drawDeck(MOVIES, L1_ROUNDS, usedMovies),
+            round:0, teamScores:[0,0], turn:0,
+            current:null, answered:false, hintUsed:false, optUsed:{} };
+  show('g1'); l1Round();
+}
+function l1RenderHud(){
+  var a=$('l1-teamA'), b=$('l1-teamB');
+  a.textContent = TEAM_NAMES[0] + ': ' + state.teamScores[0];
+  b.textContent = TEAM_NAMES[1] + ': ' + state.teamScores[1];
+  a.classList.toggle('turn', state.turn===0);
+  b.classList.toggle('turn', state.turn===1);
+  $('l1-turn').textContent = TEAM_NAMES[state.turn] + ' — your question!';
+}
+function l1Round(){
+  state.current = state.deck[state.round];
+  state.answered=false; state.hintUsed=false;
+  state.turn = state.round % 2; // round robin
+  $('l1-round').textContent = 'Round ' + (state.round+1) + ' / ' + L1_ROUNDS;
+  l1RenderHud();
+  $('l1-emoji').textContent = state.current[1];
+  $('l1-hint').textContent = '';
+  $('l1-feedback').textContent=''; $('l1-feedback').className='feedback';
+  $('l1-btn-next').style.visibility='hidden';
+  $('l1-btn-hint').disabled=false;
+
+  // Distractors: prefer titles not yet shown as options this game
+  var candidates = MOVIES.filter(function(m){ return m[0]!==state.current[0]; });
+  var freshOpts = shuffle(candidates.filter(function(m){ return !state.optUsed[m[0]]; }));
+  var staleOpts = shuffle(candidates.filter(function(m){ return state.optUsed[m[0]]; }));
+  var others = freshOpts.concat(staleOpts).slice(0,3).map(function(m){ return m[0]; });
+  others.forEach(function(t){ state.optUsed[t]=true; });
+  state.optUsed[state.current[0]]=true;
+
+  var opts = shuffle([state.current[0]].concat(others));
+  var btns = document.querySelectorAll('#l1-options .opt');
+  for(var i=0;i<4;i++){
+    btns[i].textContent=opts[i];
+    btns[i].className='opt';
+    btns[i].disabled=false;
+  }
+  setFocus(0);
+}
+function l1Answer(btn){
+  if(state.answered) return;
+  state.answered=true;
+  var fb=$('l1-feedback');
+  var team=TEAM_NAMES[state.turn];
+  var btns=document.querySelectorAll('#l1-options .opt');
+  for(var i=0;i<btns.length;i++){
+    btns[i].disabled=true;
+    if(btns[i].textContent===state.current[0]) btns[i].classList.add('correct');
+  }
+  if(btn.textContent===state.current[0]){
+    var pts = state.hintUsed ? 5 : 10;
+    state.teamScores[state.turn] += pts;
+    fb.textContent=team+': '+pick(GOOD_MSGS)+' +' + pts + ' pts';
+    fb.className='feedback good';
+    celebrate();
+    beep([523,659,784]);
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent=team+': '+pick(BAD_MSGS)+' It was "' + state.current[0] + '" (' + state.current[2] + ')';
+    fb.className='feedback bad';
+    sadRain();
+    beep([220,160]);
+  }
+  l1RenderHud();
+  $('l1-btn-hint').disabled=true;
+  $('l1-btn-next').style.visibility='visible';
+  setFocus(5);
+}
+
+// ---------- Level 2: Cartoon poster ----------
+var L2_WORTH = [15,10,7,5];
+function startL2(){
+  state = { level:2, deck:drawDeck(MOVIES, L2_ROUNDS, usedMovies),
+            round:0, score:0, current:null, hintsTaken:0 };
+  show('g2'); l2Round();
+}
+function l2Round(){
+  state.current = state.deck[state.round];
+  state.hintsTaken=0;
+  var m = state.current;
+  $('l2-round').textContent = 'Round ' + (state.round+1) + ' / ' + L2_ROUNDS;
+  $('l2-score').textContent = 'Score: ' + state.score;
+  $('l2-worth').textContent = 'Worth: ' + L2_WORTH[0] + ' pts';
+  $('l2-poster').innerHTML = (SCENES[m[4]] || SCENES.city) + '<div class="cast">' + m[1] + '</div>';
+  $('l2-teaser').textContent = '"' + m[5] + '"';
+  $('l2-hints').innerHTML='';
+  $('l2-answer').textContent='';
+  $('l2-feedback').textContent=''; $('l2-feedback').className='feedback';
+  $('l2-btn-hint').disabled=false;
+  $('l2-btn-hint').textContent='💡 Hint (1 of 3)';
+  $('l2-row-guess').classList.remove('hidden');
+  $('l2-row-judge').classList.add('hidden');
+  rebuildL2Focus();
+}
+function l2Hint(){
+  if(state.hintsTaken>=3) return;
+  state.hintsTaken++;
+  var m=state.current, line='';
+  if(state.hintsTaken===1) line='📅 Released in ' + m[2];
+  else if(state.hintsTaken===2) line='🌟 Starring ' + m[3];
+  else line='🔤 ' + letterPattern(m[0]);
+  var div=document.createElement('div');
+  div.textContent=line;
+  $('l2-hints').appendChild(div);
+  $('l2-worth').textContent='Worth: ' + L2_WORTH[state.hintsTaken] + ' pts';
+  if(state.hintsTaken>=3){ $('l2-btn-hint').disabled=true; setFocus(1); }
+  else $('l2-btn-hint').textContent='💡 Hint (' + (state.hintsTaken+1) + ' of 3)';
+}
+function l2Reveal(){
+  $('l2-answer').textContent='🎬 ' + state.current[0] + ' (' + state.current[2] + ')';
+  $('l2-row-guess').classList.add('hidden');
+  $('l2-row-judge').classList.remove('hidden');
+  beep([392,523]);
+  rebuildL2Focus();
+}
+function l2Judge(got){
+  var fb=$('l2-feedback');
+  if(got){
+    var pts=L2_WORTH[state.hintsTaken];
+    state.score+=pts;
+    fb.textContent=pick(GOOD_MSGS)+' +' + pts + ' pts';
+    fb.className='feedback good';
+    celebrate();
+    beep([523,659,784]);
+  } else {
+    fb.textContent=pick(BAD_MSGS);
+    fb.className='feedback bad';
+    sadRain();
+    beep([220,160]);
+  }
+  $('l2-score').textContent='Score: ' + state.score;
+  setTimeout(function(){
+    state.round++;
+    if(state.round>=L2_ROUNDS) endGame();
+    else l2Round();
+  }, 1100);
+}
+
+// ---------- Levels 3 & 4: Beat the Clock ----------
+var timerId=null, timeLeft=TIMER_SECS;
+function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } }
+function startTimer(){
+  stopTimer();
+  timeLeft=TIMER_SECS;
+  renderTimer();
+  timerId=setInterval(function(){
+    timeLeft--;
+    renderTimer();
+    if(timeLeft<=5 && timeLeft>0) beep([880],0.05);
+    if(timeLeft<=0){ stopTimer(); l3Timeout(); }
+  },1000);
+}
+function renderTimer(){
+  var t=$('l3-timer');
+  t.textContent='⏱️ ' + timeLeft;
+  t.className = 'timer' + (timeLeft<=10 ? ' warn' : '');
+}
+
+function startL3(){ startTimed(3); }
+function startL4(){ startTimed(4); }
+function startTimed(level){
+  var deck = level===3 ? drawDeck(MOVIES, L34_ROUNDS, usedMovies)
+                       : drawDeck(SONGS, L34_ROUNDS, usedSongs);
+  state = { level:level, deck:deck,
+            round:0, score:0, current:null, hintUsed:false, timedOut:false };
+  $('l3-label').textContent = level===3 ? 'Which movie is this?' : 'Which song is this?';
+  show('g3'); l3Round();
+}
+function l3Round(){
+  state.current = state.deck[state.round];
+  state.hintUsed=false; state.timedOut=false;
+  var c = state.current;
+  var isMovie = state.level===3;
+  $('l3-round').textContent = 'Round ' + (state.round+1) + ' / ' + L34_ROUNDS;
+  $('l3-score').textContent = 'Score: ' + state.score;
+  $('l3-emoji').textContent = c[1];
+  $('l3-keyhint').textContent = '🔑 ' + (isMovie ? c[6] : c[4]);
+  $('l3-hints').innerHTML='';
+  $('l3-answer').textContent='';
+  $('l3-feedback').textContent=''; $('l3-feedback').className='feedback';
+  $('l3-btn-hint').disabled=false;
+  $('l3-row-guess').classList.remove('hidden');
+  $('l3-row-judge').classList.add('hidden');
+  $('l3-row-timeout').classList.add('hidden');
+  rebuildL3Focus();
+  startTimer();
+}
+function l3Hint(){
+  if(state.hintUsed) return;
+  state.hintUsed=true;
+  var c=state.current;
+  var line = state.level===3
+    ? ('📅 Released in ' + c[2] + ' • Starring ' + c[3])
+    : ('🎬 From the movie "' + c[2] + '" (' + c[3] + ')');
+  var div=document.createElement('div');
+  div.textContent = line + ' — now worth 10 pts';
+  $('l3-hints').appendChild(div);
+  $('l3-btn-hint').disabled=true;
+  setFocus(1);
+}
+function l3RevealText(){
+  var c=state.current;
+  $('l3-answer').textContent = state.level===3
+    ? ('🎬 ' + c[0] + ' (' + c[2] + ')')
+    : ('🎵 ' + c[0] + ' — ' + c[2] + ' (' + c[3] + ')');
+}
+function l3Reveal(){
+  stopTimer();
+  l3RevealText();
+  $('l3-row-guess').classList.add('hidden');
+  $('l3-row-judge').classList.remove('hidden');
+  beep([392,523]);
+  rebuildL3Focus();
+}
+function l3Timeout(){
+  state.timedOut=true;
+  l3RevealText();
+  $('l3-feedback').textContent=pick(TIMEOUT_MSGS);
+  $('l3-feedback').className='feedback bad';
+  $('l3-row-guess').classList.add('hidden');
+  $('l3-row-judge').classList.add('hidden');
+  $('l3-row-timeout').classList.remove('hidden');
+  sadRain();
+  beep([196,150],0.2);
+  rebuildL3Focus();
+}
+function l3Judge(got){
+  var fb=$('l3-feedback');
+  if(got){
+    var pts = state.hintUsed ? 10 : 15;
+    state.score+=pts;
+    fb.textContent=pick(GOOD_MSGS)+' +' + pts + ' pts';
+    fb.className='feedback good';
+    celebrate();
+    beep([523,659,784]);
+  } else {
+    fb.textContent=pick(BAD_MSGS);
+    fb.className='feedback bad';
+    sadRain();
+    beep([220,160]);
+  }
+  $('l3-score').textContent='Score: ' + state.score;
+  setTimeout(l3Advance, 1100);
+}
+function l3Advance(){
+  state.round++;
+  if(state.round>=L34_ROUNDS) endGame();
+  else l3Round();
+}
+
+// ---------- Results ----------
+function endGame(){
+  stopTimer();
+  if(state.level===1){
+    var a=state.teamScores[0], b=state.teamScores[1];
+    var verdict, detail;
+    if(a>b){ verdict=TEAM_NAMES[0]+' jeet gayi! 🏆'; }
+    else if(b>a){ verdict=TEAM_NAMES[1]+' jeet gayi! 🏆'; }
+    else { verdict='Barabar ka muqabla! 🤝'; }
+    $('verdict').textContent=verdict;
+    $('final-score').textContent=TEAM_NAMES[0]+': '+a+' pts  •  '+TEAM_NAMES[1]+': '+b+' pts';
+    show('end');
+    celebrate();
+    beep([523,659,784,1047],0.15);
+    return;
+  }
+  var max = state.level===2 ? L2_ROUNDS*15 : L34_ROUNDS*15;
+  var pct = state.score/max;
+  var verdict='Flop 😅';
+  if(pct>=0.9) verdict='All-Time Blockbuster! 🏆';
+  else if(pct>=0.7) verdict='Superhit! 🌟';
+  else if(pct>=0.5) verdict='Hit! 👏';
+  else if(pct>=0.3) verdict='Average 🎟️';
+  $('verdict').textContent=verdict;
+  $('final-score').textContent='Level ' + state.level + ' • Final score: ' + state.score + ' / ' + max;
+  show('end');
+  if(pct>=0.7){ celebrate(); beep([523,659,784,1047],0.15); }
+}
+
+// ---------- Wire up ----------
+$('btn-l1').addEventListener('click', startL1);
+$('btn-l2').addEventListener('click', startL2);
+$('btn-l3').addEventListener('click', startL3);
+$('btn-l4').addEventListener('click', startL4);
+$('btn-again').addEventListener('click', function(){
+  if(state.level===1) startL1();
+  else if(state.level===2) startL2();
+  else if(state.level===3) startL3();
+  else startL4();
+});
+$('btn-menu').addEventListener('click', function(){ stopTimer(); show('title'); });
+
+$('l1-btn-hint').addEventListener('click', function(){
+  if(state.answered || state.hintUsed) return;
+  state.hintUsed=true;
+  $('l1-hint').textContent='💡 Released in ' + state.current[2] + ' (correct answer now worth 5 pts)';
+  $('l1-btn-hint').disabled=true;
+});
+$('l1-btn-next').addEventListener('click', function(){
+  state.round++;
+  if(state.round>=L1_ROUNDS) endGame();
+  else l1Round();
+});
+document.querySelectorAll('#l1-options .opt').forEach(function(b){
+  b.addEventListener('click', function(){ l1Answer(b); });
+});
+
+$('l2-btn-hint').addEventListener('click', l2Hint);
+$('l2-btn-reveal').addEventListener('click', l2Reveal);
+$('l2-btn-got').addEventListener('click', function(){ l2Judge(true); });
+$('l2-btn-miss').addEventListener('click', function(){ l2Judge(false); });
+
+$('l3-btn-hint').addEventListener('click', l3Hint);
+$('l3-btn-reveal').addEventListener('click', l3Reveal);
+$('l3-btn-got').addEventListener('click', function(){ l3Judge(true); });
+$('l3-btn-miss').addEventListener('click', function(){ l3Judge(false); });
+$('l3-btn-next').addEventListener('click', l3Advance);
+
+document.querySelectorAll('button').forEach(function(el){
+  el.addEventListener('mouseenter', function(){
+    var i=focusables.indexOf(el);
+    if(i>=0) setFocus(i);
+  });
+});
+
+buildFocus('title');
+</script>
+</body>
+</html>
